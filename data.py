@@ -28,7 +28,7 @@ for ticker in tickers:
         period=PERIOD
     )
 
-    data.to_feather(f"{ticker['name']}.feather")
+    data.to_feather(f"data/{ticker['name']}.feather")
 
     print(f"columns: {ticker['name']}: {data.columns}")
     print(f"index: {ticker['name']}: {data.index}")

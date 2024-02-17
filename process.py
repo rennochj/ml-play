@@ -9,10 +9,10 @@ N_FORECASTS = 1000
 N_FORECAST_PERIODS = 30 * 12 * 21
 MAX_RESULT = 30000
 INITIAL_VALUE = 2500000
-INITIAL_SPLIT = [1.0]
-INITIAL_OUTFLOW = 100000.0 / 12
-OUTFLOW_RATE = 0. / 12
-MOD = 21
+INITIAL_SPLIT = [0.5, 0.5]
+INITIAL_OUTFLOW = 100000.0 / 12 / 21
+OUTFLOW_RATE = 0.04 / 12 / 21
+MOD = 1
 N_EXTRACTS = 5
 
 portfolio = [
@@ -20,14 +20,14 @@ portfolio = [
         "name": "spx",
         "model": "data/spx.feather",
         "current_value": INITIAL_VALUE * INITIAL_SPLIT[0],
-        "outflow_split": 1.0
+        "outflow_split": 0.5
     },
-    # {
-    #     "name": "vbmfx",
-    #     "model": "data/vbmfx.feather",
-    #     "current_value": INITIAL_VALUE * INITIAL_SPLIT[1],
-    #     "outflow_split": 0.3
-    # }
+    {
+        "name": "vbmfx",
+        "model": "data/vbmfx.feather",
+        "current_value": INITIAL_VALUE * INITIAL_SPLIT[1],
+        "outflow_split": 0.5
+    }
 ]
 
 def load_models(portfolio):
@@ -66,36 +66,55 @@ def make_distributions(portfolio, models):
 
     return distributions
 
+def process_growth(current_values, current_rates):
+    return current_values * current_rates
+
+def rebalance(current_values, balance):
+    total = sum(current_values)
+    return balance * total
+
+def process_outflows(current_values, outflows):
+
+    next_values = current_values - outflows
+    short_fall = [ 1 if value < 0.0 else 0 for value in next_values ]
+
+    if sum(short_fall) > 0:
+        next_values = [np.NAN] * len(next_values)
+
+    return next_values
+
 def create_forecast(portfolio, distributions, outflows):
 
     forecast = pd.DataFrame({"period": np.arange(N_FORECAST_PERIODS+1)})
 
     forecast["outflow"] = outflows
 
-    value_forecast = { investment["name"]: [investment["current_value"]] for investment in portfolio }
-    rates = { investment["name"]: distributions[investment["name"]].rvs(size=N_FORECAST_PERIODS) for investment in portfolio }
+    investment_names = []
+    rate_names = []
+    rates = []
 
     for investment in portfolio:
-        forecast[investment["name"] + " rates"] = np.append(rates[investment["name"]], 0)
+        investment_names.append(investment["name"])
+        rate_names.append(investment["name"] + "-rates")
+        rates.append( distributions[investment["name"]].rvs(size=N_FORECAST_PERIODS+1) )
 
-    short_fall = False
+    rates = np.array(rates).transpose()
+    forecast[rate_names] = rates
 
+    outflow_splits = np.array([ investment["outflow_split"] for investment in portfolio ])
+    outflow_splits = np.array([ investment["outflow_split"] for investment in portfolio ])
+
+    current_values = np.array([investment["current_value"] for investment in portfolio ])
+    values = [current_values]
+    
     for i in range(N_FORECAST_PERIODS):
+        current_rates = rates[i]
+        current_values = process_growth(current_values, current_rates)
+        current_values = rebalance(current_values, np.array(INITIAL_SPLIT))
+        current_values = process_outflows(current_values, outflow_splits * outflows[i])
+        values.append(current_values)
 
-        for investment in portfolio:
-
-            if short_fall:
-                value_forecast[investment["name"]].append( np.NaN )
-
-            elif not short_fall and rates[investment["name"]][i] * value_forecast[investment["name"]][i] <= outflows[i] * investment["outflow_split"]:
-                value_forecast[investment["name"]].append( np.NaN )
-                short_fall = True
-
-            else:
-                value_forecast[investment["name"]].append( rates[investment["name"]][i] * value_forecast[investment["name"]][i] - outflows[i] * investment["outflow_split"] )
-
-    for investment in portfolio:
-        forecast[investment["name"]] = value_forecast[investment["name"]]
+    forecast[investment_names] = values
 
     forecast["total"] = forecast[[investment["name"] for investment in portfolio]].sum(axis=1)
 
@@ -126,7 +145,7 @@ if __name__ == '__main__':
     distributions = make_distributions(portfolio, models)
     results = []
 
-    outflows = make_linear_outflows(INITIAL_OUTFLOW, OUTFLOW_RATE, mod=21)
+    outflows = make_linear_outflows(INITIAL_OUTFLOW, OUTFLOW_RATE, mod=MOD)
 
     for k in range(N_FORECASTS):
 
@@ -145,9 +164,6 @@ if __name__ == '__main__':
             row=1, 
             col=1
         )
-
-        if k == 1:
-            forecast.to_csv("test.csv")
 
     result_hist = np.histogram(
         results,
