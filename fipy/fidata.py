@@ -20,7 +20,7 @@ def fetch_tickers(tickers: list[dict], path: str="data", rate_column: str="Adj C
 
 def load_model(path: str, rate_column: str="Adj Close", bins: int=100) -> stats.rv_histogram:
 
-    data = pd.read_feather("data/vbmfx.feather").reset_index()
+    data = pd.read_feather(path).reset_index()
     data["rate"] = data["Adj Close"] / data["Adj Close"].shift(1)
     data["rate"] = data["rate"].fillna(1.0)
 
