@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "ml-play"
+version = "0.1.0"
+description = ""
+authors = ["Jim Conner <rennochj@outlook.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+yfinance = "^0.2.36"
+pandas = "^2.2.0"
+plotly = "^5.19.0"
+pyarrow = "^15.0.0"
+nbformat = "^5.9.2"
+numpy = "^1.26.4"
+scipy = "^1.12.0"
+openpyxl = "^3.1.2"
+statsmodels = "^0.14.1"
+
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
