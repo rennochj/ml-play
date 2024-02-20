@@ -24,20 +24,21 @@ def outflow_ratio(dist: rv_histogram, epsilon: float, inflation: float, periods:
 
 # -- outflow ratio ----------------------------------------------------------------------------------------------------
 
-def outflow_ratio(dist: rv_histogram, initial_value: float, outflow: float, inflation: float, periods: int, iterations: int) -> list[float]:
+def values(dist: rv_histogram, initial_value: float, outflow: float, inflation: float, periods: int, iterations: int) -> list[float]:
+
+    final_values: list[float] = []
 
     for _ in range(1, iterations):
 
         rates: rv_histogram = dist.rvs(size=periods)
-
-        final_values: list[float] = [initial_value]
+        value: float = initial_value
 
         for i in range(periods):
             value = rates[i] * value - outflow * inflation ** i
 
             if value < 0.0:
                 value = 0.0
-                exit
+                break
 
         final_values.append( value )
 
